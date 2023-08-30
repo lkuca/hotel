@@ -1,0 +1,6 @@
+create table guest(
+id int primary key identity(1,1),
+first_name varchar(80),
+last_name varchar(80) null,
+member_since date);
+

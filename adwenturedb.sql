@@ -1,57 +1,57 @@
---funkts.loomine 32
-create Function fn_ILTVF_GetEmpleey()
-returns Table
+--Mitme avaldisega tabeliväärtusega funktsioonid
+
+Create Function fn_ILTVF_GetEmployees()
+Returns Table
 as
-return (Select EmployeeKey,FirstName,CAST(BirthDate as date) as DOB From DimEmployee);
+Return (Select EmployeeKey,FirstName,Cast(BirthDate as Date) as DOB From DimEmployee);
 
-select * from fn_ILTVF_GetEmpleey() ;
+Select * from fn_ILTVF_GetEmployees();
 
-create function fn_ILTVF_GetEmpleey1()
-returns @Table Table(Id int, Name varchar(20),DOB DATE)
-as
-begin
-Insert into @Table
-select EmployeeKey,FirstName,CAST(BirthDate as date)
-From DimEmployee
-return
-END
 
-select * from fn_ILTVF_GetEmpleey1();
-
-update fn_ILTVF_GetEmpleey() set FirstName='Sam123' where EmployeeKey = 1;
-select * from fn_ILTVF_GetEmpleey();
-Update fn_ILTVF_GetEmpleey1() set Name= 'Sam2' where Id = 1;
---funktsiooni loomine 33
-select * from DimEmployee;
-
-Create Function fn_GetEmployeeNameByld(@id int)
-returns nvarchar(20)
+create Function fn_MSTVF_GetEmployees2()
+Returns @Table Table (Id int, Name varchar(20), DOB Date)
 as
 Begin
-Return (Select FirstName from DimEmployee where EmployeeKey = @id)
+Insert into @Table
+Select EmployeeKey, FirstName,CAST(BirthDate as Date)
+From DimEmployee
+Return
+End
+
+select * from fn_MSTVF_GetEmployees();
+
+Update fn_MSTVF_GetEmployees2() set Name='Sam 1' where id=1
+select * from fn_MSTVF_GetEmployees2();
+
+--Funktsiooniga seotud tähtsad kontseptsioonid
+
+create function fn_GetEmployeeNameBuild(@id int)
+Returns varchar(20)
+as
+Begin
+Return(Select FirstName from DimEmployee where EmployeeKey=@id)
 end
 
-select dbo.fn_GetEmployeeNameByld(1);
+select dbo.fn_GetEmployeeNameBuild(1);
 
 
 
-alter function fn_GetEmployeeNameByld(@id int)
-returns nvarchar(20)
+alter Function fn_GetEmployeeNameBuild(@Id int)
+returns varchar(20)
 with Encryption
 as
-begin
-return ( select FirstName from dbo.DimEmployee where EmployeeKey = @id)
-end
+Begin
+Return (Select FirstName from dbo.DimEmployee where EmployeeKey = @Id)
+End
+
+select dbo.fn_GetEmployeeNameBuild(1);
 
 
-alter function fn_GetEmployeeNameByld(@id int)
-returns varchar(20)
-with Schemabinding
-as
-begin
-return ( select FirstName from dbo.DimEmployee where EmployeeKey = @id)
-end
---ajutine tabelid 34
+drop table DimEmployee
+
+
+--Ajutised tabelid
+
 CREATE TABLE #PersonDetails(
 Id int PRIMARY KEY,
 Name VARCHAR(20))
@@ -61,11 +61,10 @@ INSERT INTO #PersonDetails VALUES(2,'Matvei')
 INSERT INTO #PersonDetails VALUES(3,'Sasha')
 SELECT * FROM #PersonDetails
 
-
 SELECT name FROM  tempdb.sys.all_objects
 WHERE name LIKE '#PersonDetails%'
 
-DROP TABLE #PersonDetails
+
 
 CREATE PROCEDURE spCreateLocalTempTable
 AS
@@ -82,13 +81,123 @@ END
 
 EXEC spCreateLocalTempTable
 
-
 CREATE TABLE ##EmployeeDetails(Id int, Name NVARCHAR(20))
 SELECT * FROM ##EmployeeDetails
---indeksite loomine
-Create index IX_tblEmployee_Salary
+
+
+--Ineksid serveris
+
+select * from DimEmployee
+select * from DimEmployee where BaseRate > 35 and BaseRate <50
+
+
+
+create index IX_DimEmployee  where BaseRate > 35 and BaseRate < 50
+
+Create index IX_DimEmployee_BaseRate 
 on DimEmployee (BaseRate ASC)
 
-Execute sys.sp_helptext @Objname = 'DimEmployee'
+select top 10 * from DimEmployee order by IX_DimEmployee_BaseRate
 
-drop INDEX DimEmployee.IX_tblEmployee_Salary
+exec sys.sp_helpindex @Objname='DimEmployee'
+
+drop index DimEmployee.IX_DimEmployee_BaseRate
+
+--36. Klastreeritud ja mitte-klastreeritud indeksid
+
+select * from DimEmployee;
+
+execute sp_helpindex [tbEmployee];
+
+create table [tbEmployee]
+(
+[id] int Primary Key,
+[Name] nvarchar(50),
+[Salary] int,
+[Gender] nvarchar(10),
+[City] nvarchar(10)
+)
+
+insert into [tbEmployee] Values(3,'John',4500,'Male','New York')
+insert into [tbEmployee] Values(1,'Don',3400,'Male','London')
+insert into [tbEmployee] Values(4,'Gan',6500,'Female','Tokyo')
+insert into [tbEmployee] Values(5,'Pid',2100,'Female','Toronto')
+insert into [tbEmployee] Values(2,'Onas',2400,'Male','Sydney')
+
+Select * from [tbEmployee]
+
+create Clustered Index IX_tbEmployee_Name
+ON [tbEmployee](Name)
+
+Drop index [tbEmployee].PK__tbEmploy__3213E83F65501ADA
+
+create Clustered index IX_tblEmployee_Gender_Salary
+on tbEmployee(Gender desc, Salary ASC)
+
+Select * from tbEmployee
+
+create NonClustered index IX_tbEmployee_Name
+on tbEmployee(Name)
+
+--37. Unikaalne ja mitte-unikaalne indeks
+
+create table [tbEmployee]
+(
+[id] int Primary Key,
+[Name] nvarchar(50),
+[Salary] int,
+[Gender] nvarchar(10),
+[City] nvarchar(10)
+)
+
+execute sp_helpindex [tbEmployee];
+
+insert into [tbEmployee] Values(1,'John',4500,'Male','New York')
+insert into [tbEmployee] Values(1,'Don',3400,'Male','London')
+
+drop index tbEmployee.PK__tbEmploy__3213E83F55419F46
+
+Create Unique NonClustered Index UIX_tblEmployee_Name_City
+on tbEmployee(Name desc, City ASC)
+
+ALTER TABLE tbEmployee 
+ADD CONSTRAINT UQ_tblEmployee_City 
+UNIQUE NONCLUSTERED (City)
+
+CREATE UNIQUE INDEX IX_tblEmployee_City
+ON tbEmployee(City)
+WITH IGNORE_DUP_KEY
+
+--38. Indeksi plussid ja miinused
+
+create table [tblEmployee]
+(
+[id] int primary key,
+[FirstName] nvarchar(50),
+[LastName] nvarchar(50),
+[Salary] int,
+[Gender] nvarchar(10),
+[City] nvarchar(50)
+)
+
+insert into tblEmployee Values(1, 'Mike', 'Groshev', 5400, 'Male', 'New York')
+insert into tblEmployee Values(2, 'Luca', 'Kerekesha', 7600, 'Female', 'Kyiv')
+insert into tblEmployee Values(3, 'Max', 'Yanovich', 2300, 'Female', 'Moscow')
+insert into tblEmployee Values(4, 'Mona', 'Grozny', 1200, 'Male', 'Tokyo')
+insert into tblEmployee Values(5, 'Lisa', 'Veliky', 9100, 'Female', 'Las Vegas')
+
+select * from tblEmployee;
+
+create nonClustered index IX_tblEmployee_Salary
+on tblEmployee (Salary Asc)
+
+select * from tblEmployee where Salary>4000 and Salary<8000
+
+delete from tblEmployee where Salary=2500
+update tblEmployee Set Salary=9000 where Salary = 7500
+
+select * from tblEmployee order by Salary desc
+
+select Salary, count(Salary) as Total
+from tblEmployee
+Group by Salary
